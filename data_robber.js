@@ -58,10 +58,10 @@ async function robData(deviceName, limit, dateFrom, dateTo) {
 }
 
 async function robbery() {
-    const res = await robData("21_84", 2, "", "")
+    const res = await robData("21_84", 20, "", "")
     console.log(res)
 }
 
-robbery()
+// robbery()
 
 module.exports = robData

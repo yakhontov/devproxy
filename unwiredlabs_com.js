@@ -1,4 +1,5 @@
 const axios = require("axios").default
+const scanf = require("scanf")
 
 // https://unwiredlabs.com
 // https://unwiredlabs.com/docs
@@ -87,6 +88,6 @@ async function getEstimatedCoord(cells) {
     }
 }
 
-getEstimatedCoord(testData)
+// getEstimatedCoord(testData)
 
 module.exports = getEstimatedCoord

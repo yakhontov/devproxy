@@ -57,26 +57,36 @@ async function getCellCoord(cell) {
         options.params.mnc = cell[5]
         options.params.lac = cell[6]
         options.params.cellid = cell[7]
-        console.log("opencellid.org resuest params:", options.params)
+        //console.log("opencellid.org request params:", options.params)
         const res = await axios.request(options) // res.data возвращается готовый объект
-        console.log("opencellid.org responce data:", res.data)
+        //console.log("opencellid.org responce data:", res.data)
         if (res.data.lat && res.data.lon) return res.data // Возвращаем объект только если в нем вернулись нужные данные
-        console.log("opencellid.org error")
+        //console.log("opencellid.org error")
     } catch (error) {
         console.error(error)
     }
 }
 
-async function doTestArray(cells) {
+// Принимает массив массивов от команды "ucfscan":"<AcT>,<arfcn>,<arfcn_band>,<BSIC>, <MCC>,<MNC>,<LAC>,<CI>,<cell_barred>,<RxLev>,<grps_supported>"
+// example: [[0,867,3,21, 255, 1, parseInt('872A', 16), parseInt('3EAD', 16),0,18,1],
+//     [0,989,0,41, 255, 3, parseInt('84D2', 16), parseInt('85E9', 16),0,17,1]]
+// Возвраащет массив ответов по тем точкам, по которым есть даные. Если никаких данных нет, то возвращает пустой массив
+async function getCellsCoord(cells) {
     const promices = []
     cells.forEach((cell) => {
         promices.push(getCellCoord(cell))
     })
     const results = await Promise.all(promices)
     console.log("results:", results)
+    const ret = []
+    results.forEach((r) => {
+        if (r) ret.push(r)
+    })
+    // console.log("ret:", ret)
+    return ret
 }
 
 //getCellCoord(testData)
-doTestArray(testArray)
+//getCellsCoord(testArray)
 
 module.exports = getCellCoord
