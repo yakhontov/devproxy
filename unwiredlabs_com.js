@@ -1,5 +1,4 @@
 const axios = require("axios").default
-const scanf = require("scanf")
 
 // https://unwiredlabs.com
 // https://unwiredlabs.com/docs
@@ -65,7 +64,6 @@ async function getEstimatedCoord(cells) {
             address: 1,
         },
     }
-
     try {
         cells.forEach((cell) => {
             // Переписываем данные из входных параметров в запрос
@@ -82,7 +80,8 @@ async function getEstimatedCoord(cells) {
         console.log("unwiredlabs.com resuest data:", options.data)
         const res = await axios.request(options) // res.data возвращается готовый объект
         console.log("unwiredlabs.com responce data:", res.data)
-        return res.data
+        if (res.data.lat && res.data.lon) return res.data // Возвращаем объект только если в нем вернулись нужные данные
+        console.log("unwiredlabs.com error")
     } catch (error) {
         console.error(error)
     }
