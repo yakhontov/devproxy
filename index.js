@@ -11,7 +11,8 @@ websvr.get("/", async (req, res, next) => {
         req.headers["content-type"] &&
         req.headers["content-type"].includes("application/json") // Проверяем наличие хэдера content-type:application/json
     ) {
-        res.send(await robData(req.body)) // Попытаемся спиздить у сервера iowise немного живительных данных
+        console.log("get application/json request.body:", req.body)
+        res.send(await processRequest(req.body)) // Обрабатываем запрос от браузера и возвращаем браузеру запрошенные данные
     } else next() // Если нужного хэдера не обнаружили, то выходим передаем управление другим обработчикам websvr
 })
 

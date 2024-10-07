@@ -4,12 +4,12 @@ const beginStr = 'class="col-sm-12">{"i":"' // Эта строка являет�
 const beginDateStr = "<td>" // Эта строка является началом даты пакета
 const endDateStr = '</td><td><div class="row"><div class="col-sm-12"><div class="col-sm-3"><div class="i">Server: <span class="bold">' // Этой строкой заканчивается дата пакета
 
-async function robData(deviceName, limit, dateFrom, dateTo) {
+async function robData({ devicename, limit, datefrom, dateto }) {
     const options = {
         method: "POST",
         url: "http://3.95.124.47/twiliosim/gprsconsole_test.class.php",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        data: { loadtable: "1", sim: deviceName, limit: limit }, //, datefrom: dateFrom, dateto: dateTo
+        data: { loadtable: "1", sim: devicename, limit: limit, datefrom: datefrom, dateto: dateto }, //, datefrom: dateFrom, dateto: dateTo
     }
     // Тут очень много может пойти не так. Постараемся не положить процесс эксепшеном
     try {
@@ -44,9 +44,10 @@ async function robData(deviceName, limit, dateFrom, dateTo) {
             begin = body.indexOf(beginStr, end) // Ищем начало следующего пакета
         }
         packetsStr += "]" // Завершаем формирование json-массива
-        return packetsStr // После ограбления нужно быстро свалить
-        console.log("packetsStr:", packetsStr)
+        //return packetsStr // После ограбления нужно быстро свалить
+        //console.log("packetsStr:", packetsStr)
         const obj = JSON.parse(packetsStr)
+        return obj
         console.log("object:", obj)
         s = JSON.stringify(obj)
         console.log("s:", s)
@@ -58,10 +59,10 @@ async function robData(deviceName, limit, dateFrom, dateTo) {
 }
 
 async function robbery() {
-    const res = await robData("21_84", 20, "", "")
+    const res = await robData({ devicename: "21_84", limit: 20, datefrom: "", dateto: "" })
     console.log(res)
 }
 
-// robbery()
+//robbery()
 
 module.exports = robData
