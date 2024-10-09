@@ -1,8 +1,8 @@
 const hash = require("object-hash")
 const { unwiredlabsDb, opencellidDb } = require("./database")
 const robData = require("./data_robber")
-const getCellCoord = require("./opencellid_org")
-const getEstimatedCoord = require("./unwiredlabs_com")
+const processCell = require("./cellprocessor")
+const processMulticells = require("./multicellprocessor")
 
 // Получает объект от браузера {devicename, datefrom, dateto, limit}
 // Возвращает объект (массив), который нужно отправить серверу. Каждый элемент массива содержит тело пакета и данные от каждого сервиса геолокации для данного пакета
@@ -10,47 +10,37 @@ async function processRequest(browserReq) {
     const packetsArray = await robData(browserReq) // Получаем данные от сервера iowise
     if (!packetsArray) return []
     const res = []
-    // Перебираем все девайсовые пакеты, которые пришли от сервера
-    packetsArray.forEach(async (packetObj) => {
+
+    const cellsList = {} // Список сот из всех пакетов, которые нужно проверить в базе данных. Будем сохранять внутри объекта, чтобы соты не повторялись. Ключем будет хеш параметров
+    const multicellsList = {} // Список массивов сот из всех пакетов, которые нужно проверить в базе данных. Будем сохранять внутри объекта, чтобы массивы не повторялись. Ключем будет хеш массива
+
+    for (const packetObj of packetsArray) {
+        // Перебираем все девайсовые пакеты, которые пришли от сервера
         try {
-            const ucfsArray = ucfscanStrToArray(packetObj.ucfscan) // Преобразуем строку с данными ucfscan в соответствующий массив
-            if (!ucfsArray.length) return // Если нужных данных нет, то переходим к обработке следующего пакета
-            // Запустим одновременно запросы ко всем БД
-            const promicesDb = ucfsArray.map((cell) => opencellidDb.readObjByHash(cell.hash)) // Промисы для чтения БД
-            const ucfsObj = { cells: ucfsArray, hash: hash(ucfsArray) } // Объект для поиска в БД списка сот
-            promicesDb.push(unwiredlabsDb.readObjByHash(ucfsObj.hash)) // Запрашиваем в БД список сот
-            const dbRes = await Promise.all(promicesDb) // Ожидаем окончание выполнения всех запросов
-            const unwiredlabsRes = dbRes.pop() // Забираем из массива ответ на список. В массиве остаются только ответы на отдельные соты
-
-            console.log("+++ DB results begin +++")
-            // console.log("unwiredlabsRes:", unwiredlabsRes)
-            // console.log("opencellidRes", dbRes)
-            console.log("--- DB results end ---")
-
-            const promicesSvc = ucfsArray.map((cell, index) => (dbRes[index] ? null : getCellCoord(cell))) // Если для индекса был ответ из БД, то от
-            // TODO: Стоило бы сгруппировать все соты и все массивы сот (отсечь одинаковые) и запросить их в сервисах одновременно
-            promicesSvc.push(getEstimatedCoord(ucfsArray)) // Запрашиваем в БД список сот
-            const dbSvc = await Promise.all(promicesSvc) // Одидаем окончание выполнения всех запросов
-
-            console.log("+++ SVC results begin +++")
-            console.log("unwiredlabsRes:", dbSvc.pop())
-            console.log("opencellidRes:", dbSvc)
-            console.log("--- SVC results end ---")
-
-            // const unwiredlabsRes = dbRes.pop() // Забираем из массива ответ на список. В массиве остаются только ответы на отдельные соты
+            const multicellsParams = ucfscanStrToCellsArray(packetObj.ucfscan) // Из данного пакета преобразуем строку с данными ucfscan в соответствующий массив c параметрами для каждой соты
+            if (!multicellsParams.length) continue // Если нужных данных нет, то переходим к обработке следующего пакета
+            const multicellsObj = { cells: multicellsParams, _id: hash(multicellsParams) } // Объект для поиска в БД целого списка сот. В данном случае в хєш включен уровень сигнала
+            multicellsList[multicellsObj._id] = multicellsObj // Добавляем мултисотовый объект в список мультисотовых объектов. По этим объектам будет осуществлен поиск в БД и запрос к сервису
+            for (const cell of multicellsParams) cellsList[cell._id] = cell // Добавляем отдельные сотовые объекты к списку сот. По этим объектам будет осуществлен поиск в БД и запрос к сервису
         } catch (error) {
             console.error(error)
         }
-    })
+    }
+    // К этому моменту сформировано два списка, элементы которых нужно проверить на наличие в БД: cellsList, multicellsList
+    if (!cellsList.length && !multicellsList) return [] // Если списки пустые, то нет смысла продолжать дальше
+
+    //for (const cell of cellsListToDbCheck) processCell(cell)
+    Promise.all(Object.values(cellsList).map((cell) => processCell(cell)))
+
     return res
 }
 
 // "ucfscan":"<AcT>,<arfcn>,<arfcn_band>,<BSIC>, <MCC>,<MNC>,<LAC>,<CI>,<cell_barred>,<RxLev>,<grps_supported>"
 // ucfscan: '0,1001,0,48,255,03,7DA4,49,0,46,1|0,866,3,54,255,01,C95,56B5,0,32,1|0,812,3,35,255,03,7DA4,0,0,49,1|0,885,3,19,255,01,C95,0,0,25,1|0,593,3,35,255,03,7DA4,2333,0,49,1|0,839,3,34,255,03,7DA4,1F87,0,49,1|0,872,3,8,255,01,C95,63A3,0,49,1|0,86,0,53,255,01,C95,0,0,31,1|',
-// Дробит строку ucfscan на отдельные соты и их праметры и возвращает данные в виде массива сот с парметрами [{mcc,mnc,lac,cellid,rssi,dbm},{...}]
-function ucfscanStrToArray(ucfscanStr) {
+// Дробит строку ucfscanStr на отдельные соты и их праметры и возвращает данные в виде массива сот с объектами-списками парметров [{mcc,mnc,lac,cellid,rssi,dbm},{...}]
+function ucfscanStrToCellsArray(ucfscanStr) {
     if (!ucfscanStr) return []
-    const cellParams = []
+    const cellsParamsArray = []
     ucfscanStr.split("|").forEach((cellParamsStr) => {
         cellParamsParts = cellParamsStr.split(",")
         if (cellParamsParts.length >= 10) {
@@ -61,16 +51,16 @@ function ucfscanStrToArray(ucfscanStr) {
                     lac: parseInt(cellParamsParts[6], 16),
                     cellid: parseInt(cellParamsParts[7], 16),
                 }
-                cellParamsObj.hash = hash(cellParamsObj) // До подсчета хэша сохраним только постоянные параметры, без показателей уровня сигнала
+                cellParamsObj._id = hash(cellParamsObj) // До подсчета хэша сохраним только постоянные параметры, без показателей уровня сигнала
                 cellParamsObj.rssi = parseInt(cellParamsParts[9])
                 cellParamsObj.dbm = rssiToDbm(cellParamsParts[9])
-                cellParams.push(cellParamsObj)
+                cellsParamsArray.push(cellParamsObj)
             } catch (error) {
                 console.error(error)
             }
         }
     })
-    return cellParams
+    return cellsParamsArray
 }
 
 // Преобразование уровня сигнала из RSSI в dBm
@@ -83,8 +73,16 @@ function rssiToDbm(rssi) {
     else return rssi - 111
 }
 
+async function processData(cells) {
+    if (cells.cells) {
+        return await processCellsArray(cells)
+    } else {
+        return await processCell(cells)
+    }
+}
+
 async function test() {
-    await processRequest({ devicename: "21_81", limit: 2, datefrom: "", dateto: "" })
+    await processRequest({ devicename: "21_81", limit: 100, datefrom: "", dateto: "" })
 }
 
 function test2() {

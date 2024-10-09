@@ -15,12 +15,11 @@ class Db {
     }
 
     async readObjByHash(hash) {
-        const res = await this.db.find({ hash: hash }).limit(1).toArray()
-        return res ? res[0] : null
+        return await this.db.findOne({ _id: hash })
     }
 
     async writeObj(obj) {
-        return await this.db.insertOne(obj)
+        return await this.db.replaceOne({ _id: obj._id }, obj, { upsert: true })
     }
 }
 

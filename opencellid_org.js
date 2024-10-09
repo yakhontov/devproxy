@@ -24,8 +24,10 @@ async function getCellCoord(cell) {
         }
         // console.log("opencellid.org request params:", options.params)
         const res = await axios.request(options) // res.data возвращается готовый объект
+        res.data.timestamp = Date.now()
+        return res.data
         // console.log("opencellid.org responce data:", res.data)
-        if (res.data.lat && res.data.lon) return res.data // Возвращаем объект только если в нем вернулись нужные данные
+        //if (res.data.lat && res.data.lon) return res.data // Возвращаем объект только если в нем вернулись нужные данные
         // console.log("opencellid.org error")
     } catch (error) {
         console.error(error)
