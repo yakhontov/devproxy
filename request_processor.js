@@ -8,6 +8,7 @@ const processMulticells = require("./multicellprocessor")
 // Возвращает объект (массив), который нужно отправить серверу. Каждый элемент массива содержит тело пакета и данные от каждого сервиса геолокации для данного пакета
 async function processRequest(browserReq) {
     const packetsArray = await robData(browserReq) // Получаем данные от сервера iowise
+    //console.log(packetsArray)
     if (!packetsArray) return []
 
     const cellsList = {} // Список сот из всех пакетов, которые нужно проверить в базе данных. Будем сохранять внутри объекта, чтобы соты не повторялись. Ключем будет хеш параметров
@@ -41,7 +42,7 @@ async function processRequest(browserReq) {
     for (const packetObj of packetsArray) {
         // Повторно перебираем все девайсовые пакеты, которые пришли от сервера, чтобы присвоить соответствующим пакетам найденные координаты
         if (!packetObj.nearestcells) continue
-        console.log("packetObj before:", JSON.stringify(packetObj, null, "\t"))
+        //console.log("packetObj before:", JSON.stringify(packetObj, null, "\t"))
         const unwiredlabsData = promRes.find((element) => element._id === packetObj.nearestcells._id) // Находим среди массива обработанных эдементов элемент с нужным хэшем
         if (unwiredlabsData) packetObj.nearestcells.unwiredlabs = unwiredlabsData.unwiredlabs
         for (const cell of packetObj.nearestcells.cells) {
@@ -51,13 +52,13 @@ async function processRequest(browserReq) {
             const { rssi, dbm } = cell
             Object.assign(cell, opencellidData, { rssi, dbm })
         }
-        console.log("packetObj after:", JSON.stringify(packetObj, null, "\t"))
+        //console.log("packetObj after:", JSON.stringify(packetObj, null, "\t"))
     }
 
     // console.log("multicellsList:", multicellsList)
     // console.log("cellsList:", cellsList)
     // console.log("res:", res)
-
+    console.log("packetsArray:", JSON.stringify(packetsArray, null, "\t"))
     return packetsArray
 }
 
@@ -80,7 +81,7 @@ function ucfscanStrToCellsArray(ucfscanStr) {
                 cellParamsObj._id = hash(cellParamsObj) // До подсчета хэша сохраним только постоянные параметры, без показателей уровня сигнала
                 cellParamsObj.rssi = parseInt(cellParamsParts[9])
                 cellParamsObj.dbm = rssiToDbm(cellParamsParts[9])
-                cellsParamsArray.push(cellParamsObj)
+                if (cellParamsObj.mcc || cellParamsObj.mnc || cellParamsObj.lac || cellParamsObj.cellid) cellsParamsArray.push(cellParamsObj)
             } catch (error) {
                 console.error(error)
             }
@@ -108,7 +109,7 @@ async function processData(cells) {
 }
 
 async function test() {
-    await processRequest({ devicename: "21_81", limit: 50, datefrom: "", dateto: "" })
+    await processRequest({ devicename: "21_73", limit: 500, datefrom: "", dateto: "" })
 }
 
 function test2() {
@@ -121,7 +122,7 @@ function test2() {
     )
 }
 
-//test()
+test()
 //test2()
 
 module.exports = processRequest
