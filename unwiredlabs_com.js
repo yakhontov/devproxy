@@ -33,8 +33,8 @@ function rssiToDbm(rssi) {
     else return rssi - 111
 }
 
-// Закидываем сюда массив массивов данных, который возвращает команда ucfscan
-// На выходе получаем ответ сервиса в котором предполагаемая координата, либо ошибка, либо undefined, если произошла ошибка подключения
+// Закидываем сюда объект { cells, _id }
+// На выходе получаем этот же объект, к которому добавлен ответ сервиса котором предполагаемая координата { cells, _id, unwiredlabs }
 // {
 //     status: 'ok',
 //     balance: 95,
@@ -43,8 +43,7 @@ function rssiToDbm(rssi) {
 //     accuracy: 900,
 //     address: 'West Mineral Avenue, Littleton, Arapahoe County, Colorado, 80120, USA'
 // }
-async function getEstimatedCoord(cells) {
-    //console.log("getEstimatedCoord()", cells)
+async function getEstimatedCoord(multicellsObj) {
     try {
         const options = {
             method: "POST",
@@ -53,7 +52,7 @@ async function getEstimatedCoord(cells) {
                 token: TOKEN,
                 radio: "gsm",
                 address: 1,
-                cells: cells.map((cell) => {
+                cells: multicellsObj.cells.map((cell) => {
                     return {
                         mcc: cell.mcc,
                         mnc: cell.mnc,
@@ -66,24 +65,33 @@ async function getEstimatedCoord(cells) {
         }
         //console.log("unwiredlabs.com resuest data:", options.data)
         const res = await axios.request(options) // res.data возвращается готовый объект
+        res.data.timestamp = Date.now()
         //console.log("unwiredlabs.com responce data:", res.data)
-        if (res.data.lat && res.data.lon) return res.data // Возвращаем объект только если в нем вернулись нужные данные
-        //console.log("unwiredlabs.com error")
+        multicellsObj.unwiredlabs = res.data
+        //console.log("unwiredlabs.com return:", multicellsObj)
+        return multicellsObj
     } catch (error) {
         console.error(error)
     }
 }
 
-// "ucfscan":"<AcT>,<arfcn>,<arfcn_band>,<BSIC>, <MCC>,<MNC>,<LAC>,<CI>,<cell_barred>,<RxLev>,<grps_supported>"
-// getEstimatedCoord([
-//     [0, 870, 3, 24, 255, 1, parseInt("872A", 16), parseInt("E907", 16), 0, 49, 1],
-//     [0, 874, 3, 31, 255, 1, parseInt("872A", 16), 0, 0, 30, 1],
-//     [0, 85, 0, 50, 255, 1, parseInt("872A", 16), parseInt("E904", 16), 0, 28, 1],
-//     [0, 87, 0, 60, 255, 1, parseInt("872A", 16), 0, 0, 21, 1],
-//     [0, 828, 3, 36, 255, 3, parseInt("84D2", 16), 0, 0, 20, 1],
-//     [0, 865, 3, 17, 255, 1, parseInt("872A", 16), 0, 0, 19, 1],
-//     [0, 867, 3, 21, 255, 1, parseInt("872A", 16), parseInt("3EAD", 16), 0, 18, 1],
-//     [0, 989, 0, 41, 255, 3, parseInt("84D2", 16), parseInt("85E9", 16), 0, 17, 1],
-// ])
+function rssiToDbm(rssi) {
+    if (rssi < 1) return -109
+    else if (rssi > 62) return -48
+    else return rssi - 111
+}
+
+// getEstimatedCoord({
+//     cells: [
+//         { mcc: 255, mnc: 1, lac: parseInt("872A", 16), cellid: parseInt("E907", 16), dbm: rssiToDbm(49) },
+//         { mcc: 255, mnc: 1, lac: parseInt("872A", 16), cellid: 0, dbm: rssiToDbm(30) },
+//         { mcc: 255, mnc: 1, lac: parseInt("872A", 16), cellid: parseInt("E904", 16), dbm: rssiToDbm(28) },
+//         { mcc: 255, mnc: 1, lac: parseInt("872A", 16), cellid: 0, dbm: rssiToDbm(21) },
+//         { mcc: 255, mnc: 3, lac: parseInt("84D2", 16), cellid: 0, dbm: rssiToDbm(20) },
+//         { mcc: 255, mnc: 1, lac: parseInt("872A", 16), cellid: 0, dbm: rssiToDbm(19) },
+//         { mcc: 255, mnc: 1, lac: parseInt("872A", 16), cellid: parseInt("3EAD", 16), dbm: rssiToDbm(18) },
+//         { mcc: 255, mnc: 3, lac: parseInt("84D2", 16), cellid: parseInt("85E9", 16), dbm: rssiToDbm(17) },
+//     ],
+// })
 
 module.exports = getEstimatedCoord

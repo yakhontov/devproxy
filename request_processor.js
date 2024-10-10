@@ -9,7 +9,6 @@ const processMulticells = require("./multicellprocessor")
 async function processRequest(browserReq) {
     const packetsArray = await robData(browserReq) // Получаем данные от сервера iowise
     if (!packetsArray) return []
-    const res = []
 
     const cellsList = {} // Список сот из всех пакетов, которые нужно проверить в базе данных. Будем сохранять внутри объекта, чтобы соты не повторялись. Ключем будет хеш параметров
     const multicellsList = {} // Список массивов сот из всех пакетов, которые нужно проверить в базе данных. Будем сохранять внутри объекта, чтобы массивы не повторялись. Ключем будет хеш массива
@@ -20,6 +19,7 @@ async function processRequest(browserReq) {
             const multicellsParams = ucfscanStrToCellsArray(packetObj.ucfscan) // Из данного пакета преобразуем строку с данными ucfscan в соответствующий массив c параметрами для каждой соты
             if (!multicellsParams.length) continue // Если нужных данных нет, то переходим к обработке следующего пакета
             const multicellsObj = { cells: multicellsParams, _id: hash(multicellsParams) } // Объект для поиска в БД целого списка сот. В данном случае в хєш включен уровень сигнала
+            packetObj.nearestcells = multicellsObj
             multicellsList[multicellsObj._id] = multicellsObj // Добавляем мултисотовый объект в список мультисотовых объектов. По этим объектам будет осуществлен поиск в БД и запрос к сервису
             for (const cell of multicellsParams) cellsList[cell._id] = cell // Добавляем отдельные сотовые объекты к списку сот. По этим объектам будет осуществлен поиск в БД и запрос к сервису
         } catch (error) {
@@ -29,10 +29,36 @@ async function processRequest(browserReq) {
     // К этому моменту сформировано два списка, элементы которых нужно проверить на наличие в БД: cellsList, multicellsList
     if (!cellsList.length && !multicellsList) return [] // Если списки пустые, то нет смысла продолжать дальше
 
-    //for (const cell of cellsListToDbCheck) processCell(cell)
-    Promise.all(Object.values(cellsList).map((cell) => processCell(cell)))
+    // Promise.all(Object.values(multicellsList).map((multicell) => processMulticells(multicell)))
+    // Promise.all(Object.values(cellsList).map((cell) => processCell(cell)))
 
-    return res
+    const promRes = await Promise.all(
+        Object.values(multicellsList)
+            .map((multicell) => processMulticells(multicell))
+            .concat(Object.values(cellsList).map((cell) => processCell(cell)))
+    )
+
+    for (const packetObj of packetsArray) {
+        // Повторно перебираем все девайсовые пакеты, которые пришли от сервера, чтобы присвоить соответствующим пакетам найденные координаты
+        if (!packetObj.nearestcells) continue
+        console.log("packetObj before:", JSON.stringify(packetObj, null, "\t"))
+        const unwiredlabsData = promRes.find((element) => element._id === packetObj.nearestcells._id) // Находим среди массива обработанных эдементов элемент с нужным хэшем
+        if (unwiredlabsData) packetObj.nearestcells.unwiredlabs = unwiredlabsData.unwiredlabs
+        for (const cell of packetObj.nearestcells.cells) {
+            // Перебираем соты из массива сот пакета
+            const opencellidData = promRes.find((element) => element._id === cell._id) // Находим среди массива обработанных эдементов элемент с нужным хэшем
+            if (!opencellidData) continue
+            const { rssi, dbm } = cell
+            Object.assign(cell, opencellidData, { rssi, dbm })
+        }
+        console.log("packetObj after:", JSON.stringify(packetObj, null, "\t"))
+    }
+
+    // console.log("multicellsList:", multicellsList)
+    // console.log("cellsList:", cellsList)
+    // console.log("res:", res)
+
+    return packetsArray
 }
 
 // "ucfscan":"<AcT>,<arfcn>,<arfcn_band>,<BSIC>, <MCC>,<MNC>,<LAC>,<CI>,<cell_barred>,<RxLev>,<grps_supported>"
@@ -82,7 +108,7 @@ async function processData(cells) {
 }
 
 async function test() {
-    await processRequest({ devicename: "21_81", limit: 100, datefrom: "", dateto: "" })
+    await processRequest({ devicename: "21_81", limit: 50, datefrom: "", dateto: "" })
 }
 
 function test2() {
@@ -95,7 +121,7 @@ function test2() {
     )
 }
 
-test()
+//test()
 //test2()
 
 module.exports = processRequest
