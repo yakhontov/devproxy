@@ -1,17 +1,17 @@
 const express = require("express")
+var cors = require("cors")
 const processRequest = require("./request_processor")
 
 const websvr = express()
 
+websvr.use(cors())
+
 websvr.use(express.json()) // Без этой бабуйни не получается прочитать payload запроса
 
-websvr.get("/", async (req, res, next) => {
-    // На GET запрос с хэдером content-type:application/json будем отправлять массив пакетов от девайса
-    if (
-        req.headers["content-type"] &&
-        req.headers["content-type"].includes("application/json") // Проверяем наличие хэдера content-type:application/json
-    ) {
-        console.log("get application/json request.body:", req.body)
+websvr.put("/", async (req, res, next) => {
+    // Проверяем наличие хэдера content-type:application/json
+    if (req.headers["content-type"]?.includes("application/json")) {
+        //console.log("get application/json request.body:", req.body)
         res.send(await processRequest(req.body)) // Обрабатываем запрос от браузера и возвращаем браузеру запрошенные данные
     } else next() // Если нужного хэдера не обнаружили, то выходим передаем управление другим обработчикам websvr
 })

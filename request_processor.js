@@ -52,7 +52,7 @@ async function processRequest(browserReq) {
             const { rssi, dbm } = cell
             Object.assign(cell, opencellidData, { rssi, dbm })
         }
-        console.log("packetObj after:", JSON.stringify(packetObj, null, "\t"))
+        //console.log("packetObj after:", JSON.stringify(packetObj, null, "\t"))
     }
 
     // console.log("multicellsList:", multicellsList)
@@ -110,7 +110,7 @@ async function processData(cells) {
 }
 
 async function test() {
-    await processRequest({ devicename: "21_73", limit: 10, datefrom: "", dateto: "" })
+    await processRequest({ devicename: "21_73", limit: 20, datefrom: "", dateto: "" })
 }
 
 function test2() {
