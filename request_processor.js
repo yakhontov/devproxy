@@ -1,5 +1,4 @@
 const hash = require("object-hash")
-const { unwiredlabsDb, opencellidDb } = require("./database")
 const robData = require("./data_robber")
 const processCell = require("./cellprocessor")
 const processMulticells = require("./multicellprocessor")
@@ -21,7 +20,7 @@ async function processRequest(browserReq) {
             if (!multicellsParams.length) continue // Если нужных данных нет, то переходим к обработке следующего пакета
             const multicellsObj = { cells: multicellsParams, _id: hash(multicellsParams) } // Объект для поиска в БД целого списка сот. В данном случае в хєш включен уровень сигнала
             packetObj.nearestcells = multicellsObj
-            multicellsList[multicellsObj._id] = multicellsObj // Добавляем мултисотовый объект в список мультисотовых объектов. По этим объектам будет осуществлен поиск в БД и запрос к сервису
+            multicellsList[multicellsObj._id] = multicellsObj // Добавляем мультисотовый объект в список мультисотовых объектов. По этим объектам будет осуществлен поиск в БД и запрос к сервису
             for (const cell of multicellsParams) cellsList[cell._id] = cell // Добавляем отдельные сотовые объекты к списку сот. По этим объектам будет осуществлен поиск в БД и запрос к сервису
         } catch (error) {
             console.error(error)
@@ -29,9 +28,6 @@ async function processRequest(browserReq) {
     }
     // К этому моменту сформировано два списка, элементы которых нужно проверить на наличие в БД: cellsList, multicellsList
     if (!cellsList.length && !multicellsList) return [] // Если списки пустые, то нет смысла продолжать дальше
-
-    // Promise.all(Object.values(multicellsList).map((multicell) => processMulticells(multicell)))
-    // Promise.all(Object.values(cellsList).map((cell) => processCell(cell)))
 
     const promRes = await Promise.all(
         Object.values(multicellsList)

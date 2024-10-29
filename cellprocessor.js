@@ -1,4 +1,4 @@
-const { opencellidDb } = require("./database")
+const { opencellidDb } = require("./filedb")
 const getCellCoord = require("./opencellid_org")
 
 // Запросить в БД данные по соте, при отсутствии таковых запросить данные в сервисе, сохранить результат в БД и вернуть из функции

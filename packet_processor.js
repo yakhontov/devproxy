@@ -1,5 +1,4 @@
 const qs = require("querystring")
-const scanf = require("scanf")
 const db = require("./database")
 
 // Получает пакет (не распарсенную строку) от устройства

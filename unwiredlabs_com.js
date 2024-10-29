@@ -1,5 +1,4 @@
 const axios = require("axios").default
-const scanf = require("scanf")
 
 const TOKEN = "pk.4bd7ca83b4c89953ca137c59db0b8657"
 

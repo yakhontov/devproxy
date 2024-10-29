@@ -1,4 +1,4 @@
-const { unwiredlabsDb } = require("./database")
+const { unwiredlabsDb } = require("./filedb")
 const getEstimatedCoord = require("./unwiredlabs_com")
 
 // Запросить в БД данные по массиву сот, при отсутствии таковых запросить данные в сервисе, сохранить результат в БД и вернуть из функции

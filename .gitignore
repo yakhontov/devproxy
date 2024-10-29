@@ -133,4 +133,5 @@ dist
 *.mwb.bak
 *.mwb.beforefix
 build/*
+db/*
 
